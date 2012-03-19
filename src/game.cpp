@@ -50,6 +50,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "main.h" // For g_settings
 #include "itemdef.h"
 #include "tile.h" // For TextureSource
+#include "shader.h" // For ShaderSource
 #include "logoutputbuffer.h"
 #include "subgame.h"
 #include "quicktune_shortcutter.h"
@@ -876,6 +877,9 @@ void the_game(
 	// Create texture source
 	IWritableTextureSource *tsrc = createTextureSource(device);
 	
+	// Create shader source
+	IWritableShaderSource *shsrc = createShaderSource(device);
+	
 	// These will be filled by data received from the server
 	// Create item definition manager
 	IWritableItemDefManager *itemdef = createItemDefManager();
@@ -943,7 +947,7 @@ void the_game(
 	MapDrawControl draw_control;
 
 	Client client(device, playername.c_str(), password, draw_control,
-			tsrc, itemdef, nodedef, sound, &eventmgr);
+			tsrc, shsrc, itemdef, nodedef, sound, &eventmgr);
 	
 	// Client acts as our GameDef
 	IGameDef *gamedef = &client;
@@ -1420,6 +1424,11 @@ void the_game(
 			Process TextureSource's queue
 		*/
 		tsrc->processQueue();
+
+		/*
+			Process ShaderSource's queue
+		*/
+		shsrc->processQueue();
 
 		/*
 			Random calculations
@@ -3001,9 +3010,11 @@ void the_game(
 	
 	if(!sound_is_dummy)
 		delete sound;
+
+	delete tsrc;
+	delete shsrc;
 	delete nodedef;
 	delete itemdef;
-	delete tsrc;
 }
 
 
