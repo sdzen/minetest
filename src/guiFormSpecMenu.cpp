@@ -46,7 +46,7 @@ void drawItemStack(video::IVideoDriver *driver,
 		return;
 	
 	const ItemDefinition &def = item.getDefinition(gamedef->idef());
-	video::ITexture *texture = def.inventory_texture;
+	video::ITexture *texture = gamedef->idef()->getInventoryTexture(def.name, gamedef);
 
 	// Draw the inventory texture
 	if(texture != NULL)
