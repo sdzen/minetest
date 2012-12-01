@@ -126,6 +126,13 @@
 #sound_volume = 0.7
 # Whether node texture animations should be desynchronized per MapBlock
 #desynchronize_mapblock_texture_animation = true
+# Texture filtering settings
+#mip_map = false
+#anisotropic_filter = false
+#bilinear_filter = false
+#trilinear_filter = false
+# Set to false to pre-generate all item visuals
+#enable_on_demand_item_visuals = true
 
 #
 # Server stuff

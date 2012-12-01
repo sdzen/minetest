@@ -110,6 +110,7 @@ void set_default_settings(Settings *settings)
 	settings->setDefault("anisotropic_filter", "false");
 	settings->setDefault("bilinear_filter", "false");
 	settings->setDefault("trilinear_filter", "false");
+	settings->setDefault("enable_on_demand_item_visuals", "true");
 
 	// Server stuff
 	// "map-dir" doesn't exist by default.
