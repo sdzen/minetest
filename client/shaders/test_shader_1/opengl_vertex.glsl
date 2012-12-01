@@ -3,10 +3,14 @@ uniform mat4 mWorldViewProj;
 uniform mat4 mInvWorld;
 uniform mat4 mTransWorld;
 
+varying vec3 vPosition;
+
 void main(void)
 {
 	gl_Position = mWorldViewProj * gl_Vertex;
-	
+
+	vPosition = (mWorldViewProj * gl_Vertex).xyz;
+
 	if(gl_Normal.y > 0.5)
 		gl_FrontColor = gl_BackColor = gl_Color;
 	else
