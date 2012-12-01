@@ -172,10 +172,24 @@ private:
 	ShaderCallback: Sets constants that can be used in shaders
 */
 
-class ShaderCallback : public video::IShaderConstantSetCallBack
+class IShaderConstantSetterRegistry
 {
 public:
-	ShaderCallback(IrrlichtDevice *device): m_device(device) {}
+	virtual ~IShaderConstantSetterRegistry(){};
+	virtual void onSetConstants(video::IMaterialRendererServices *services,
+			bool is_highlevel, const std::string &name) = 0;
+};
+
+class ShaderCallback : public video::IShaderConstantSetCallBack
+{
+	IShaderConstantSetterRegistry *m_scsr;
+	std::string m_name;
+
+public:
+	ShaderCallback(IShaderConstantSetterRegistry *scsr, const std::string &name):
+		m_scsr(scsr),
+		m_name(name)
+	{}
 	~ShaderCallback() {}
 
 	virtual void OnSetConstants(video::IMaterialRendererServices *services, s32 userData)
@@ -184,6 +198,28 @@ public:
 		assert(driver);
 
 		bool is_highlevel = userData;
+
+		m_scsr->onSetConstants(services, is_highlevel, m_name);
+	}
+};
+
+/*
+	MainShaderConstantSetter: Set basic constants required for almost everything
+*/
+
+class MainShaderConstantSetter : public IShaderConstantSetter
+{
+public:
+	MainShaderConstantSetter(IrrlichtDevice *device):
+		m_device(device)
+	{}
+	~MainShaderConstantSetter() {}
+
+	virtual void onSetConstants(video::IMaterialRendererServices *services,
+			bool is_highlevel)
+	{
+		video::IVideoDriver *driver = services->getVideoDriver();
+		assert(driver);
 
 		// set inverted world matrix
 		core::matrix4 invWorld = driver->getTransform(video::ETS_WORLD);
@@ -220,7 +256,7 @@ private:
 	ShaderSource
 */
 
-class ShaderSource : public IWritableShaderSource
+class ShaderSource : public IWritableShaderSource, public IShaderConstantSetterRegistry
 {
 public:
 	ShaderSource(IrrlichtDevice *device);
@@ -273,6 +309,14 @@ public:
 	// Shall be called from the main thread.
 	void rebuildShaders();
 
+	void addGlobalConstantSetter(IShaderConstantSetter *setter)
+	{
+		m_global_setters.push_back(setter);
+	}
+
+	void onSetConstants(video::IMaterialRendererServices *services,
+			bool is_highlevel, const std::string &name);
+
 private:
 
 	// The id of the thread that is allowed to use irrlicht directly
@@ -296,6 +340,10 @@ private:
 
 	// Queued shader fetches (to be processed by the main thread)
 	RequestQueue<std::string, u32, u8, u8> m_get_shader_queue;
+
+	// Global constant setters
+	// TODO: Delete these in the destructor
+	core::array<IShaderConstantSetter*> m_global_setters;
 };
 
 IWritableShaderSource* createShaderSource(IrrlichtDevice *device)
@@ -323,7 +371,7 @@ ShaderSource::ShaderSource(IrrlichtDevice *device):
 {
 	assert(m_device);
 
-	m_shader_callback = new ShaderCallback(device);
+	m_shader_callback = new ShaderCallback(this, "default");
 
 	m_shaderinfo_cache_mutex.Init();
 
@@ -332,6 +380,9 @@ ShaderSource::ShaderSource(IrrlichtDevice *device):
 	// Add a dummy ShaderInfo as the first index, named ""
 	m_shaderinfo_cache.push_back(ShaderInfo());
 	m_name_to_id[""] = 0;
+
+	// Add main global constant setter
+	addGlobalConstantSetter(new MainShaderConstantSetter(device));
 }
 
 ShaderSource::~ShaderSource()
@@ -530,6 +581,15 @@ void ShaderSource::rebuildShaders()
 		ShaderInfo *info = &m_shaderinfo_cache[i];
 		*info = generate_shader(info->name, m_device,
 				m_shader_callback, &m_sourcecache);
+	}
+}
+
+void ShaderSource::onSetConstants(video::IMaterialRendererServices *services,
+		bool is_highlevel, const std::string &name)
+{
+	for(u32 i=0; i<m_global_setters.size(); i++){
+		IShaderConstantSetter *setter = m_global_setters[i];
+		setter->onSetConstants(services, is_highlevel);
 	}
 }
  

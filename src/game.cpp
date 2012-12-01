@@ -24,6 +24,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <IGUIButton.h>
 #include <IGUIStaticText.h>
 #include <IGUIFont.h>
+#include <IMaterialRendererServices.h>
 #include "client.h"
 #include "server.h"
 #include "guiPauseMenu.h"
@@ -835,6 +836,37 @@ public:
 	}
 };
 
+class GameGlobalShaderConstantSetter : public IShaderConstantSetter
+{
+	Sky *m_sky;
+
+public:
+	GameGlobalShaderConstantSetter(Sky *sky):
+		m_sky(sky)
+	{}
+	~GameGlobalShaderConstantSetter() {}
+
+	virtual void onSetConstants(video::IMaterialRendererServices *services,
+			bool is_highlevel)
+	{
+		if(!is_highlevel)
+			return;
+
+		video::SColor bgcolor = m_sky->getBgColor();
+		video::SColorf bgcolorf(bgcolor);
+		float bgcolorfa[4] = {
+			bgcolorf.r,
+			bgcolorf.g,
+			bgcolorf.b,
+			bgcolorf.a,
+		};
+		services->setPixelShaderConstant("skyBgColor", bgcolorfa, 4);
+	}
+
+private:
+	IrrlichtDevice *m_device;
+};
+
 void the_game(
 	bool &kill,
 	bool random_input,
@@ -1144,6 +1176,12 @@ void the_game(
 	{
 		farmesh = new FarMesh(smgr->getRootSceneNode(), smgr, -1, client.getMapSeed(), &client);
 	}
+
+	/*
+		Shader constants
+	*/
+	shsrc->addGlobalConstantSetter(
+			new GameGlobalShaderConstantSetter(sky));
 
 	/*
 		A copy of the local inventory
