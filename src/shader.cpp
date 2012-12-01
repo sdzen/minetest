@@ -35,6 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "EShaderTypes.h"
 #include "log.h"
 #include "gamedef.h"
+#include "strfnd.h" // trim()
 
 /*
 	A cache from shader name to shader path
@@ -546,7 +547,8 @@ ShaderInfo generate_shader(std::string name, IrrlichtDevice *device,
 	/*
 		Get the base material
 	*/
-	std::string base_material_name = sourcecache->getOrLoad(name, "base.txt");
+	std::string base_material_name =
+		trim(sourcecache->getOrLoad(name, "base.txt"));
 	for(s32 i = 0; video::sBuiltInMaterialTypeNames[i] != 0; i++){
 		if(video::sBuiltInMaterialTypeNames[i] == base_material_name){
 			shaderinfo.material = (video::E_MATERIAL_TYPE) i;
