@@ -6,7 +6,6 @@ varying vec3 vPosition;
 
 void main (void)
 {
-	//vec4 bgColor = vec4(0.55, 0.73, 0.98, 1.0);
     vec4 col = texture2D(myTexture, vec2(gl_TexCoord[0]));
 	float a = col.a;
     col *= gl_Color;

@@ -13,6 +13,7 @@ void main(void)
 	vPosition = (mWorldViewProj * gl_Vertex).xyz;
 
 	gl_FrontColor = gl_BackColor = gl_Color;
+	//gl_FrontColor = gl_BackColor = vec4(1.0, 1.0, 1.0, 1.0);
 
 	gl_TexCoord[0] = gl_MultiTexCoord0;
 }
