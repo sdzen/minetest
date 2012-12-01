@@ -52,6 +52,17 @@ struct ShaderInfo
 };
 
 /*
+	Setter of constants for shaders
+*/
+
+class IShaderConstantSetter
+{
+public:
+	virtual ~IShaderConstantSetter(){};
+	virtual void onSetConstants(video::IMaterialRendererServices *services) = 0;
+};
+
+/*
 	ShaderSource creates and caches shaders.
 */
 
