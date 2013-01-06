@@ -428,8 +428,7 @@ v3f transposeMatrix(irr::core::matrix4 M, v3f v)
 	return translated;
 }
 
-#if 0
-static void make_jungletree(VoxelManipulator &vmanip, v3s16 p0,
+void make_jungletree(ManualMapVoxelManipulator &vmanip, v3s16 p0,
 		INodeDefManager *ndef)
 {
 	MapNode treenode(ndef->getId("mapgen_jungletree"));
@@ -515,6 +514,5 @@ static void make_jungletree(VoxelManipulator &vmanip, v3s16 p0,
 			vmanip.m_data[vi] = leavesnode;
 	}
 }
-#endif
 
 }; // namespace treegen

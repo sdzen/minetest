@@ -870,7 +870,6 @@ double tree_amount_2d(u64 seed, v2s16 p)
 		return 0.04 * (noise-zeroval) / (1.0-zeroval);
 }
 
-#if 0
 double surface_humidity_2d(u64 seed, v2s16 p)
 {
 	double noise = noise2d_perlin(
@@ -884,6 +883,7 @@ double surface_humidity_2d(u64 seed, v2s16 p)
 	return noise;
 }
 
+#if 0
 /*
 	Incrementally find ground level from 3d noise
 */
@@ -1195,9 +1195,14 @@ void make_block(BlockMakeData *data)
 	int volume_blocks = (blockpos_max.X - blockpos_min.X + 1)
 			* (blockpos_max.Y - blockpos_min.Y + 1)
 			* (blockpos_max.Z - blockpos_max.Z + 1);
+	/*int volume_blocks_real = (blockpos_max.X - blockpos_min.X + 1)
+			* (blockpos_max.Y - blockpos_min.Y + 1)
+			* (blockpos_max.Z - blockpos_min.Z + 1);*/
 	
 	int volume_nodes = volume_blocks *
 			MAP_BLOCKSIZE*MAP_BLOCKSIZE*MAP_BLOCKSIZE;
+	/*int volume_nodes_real = volume_blocks_real *
+			MAP_BLOCKSIZE*MAP_BLOCKSIZE*MAP_BLOCKSIZE;*/
 	
 	// Generated surface area
 	//double gen_area_nodes = MAP_BLOCKSIZE*MAP_BLOCKSIZE * rel_volume;
@@ -2099,8 +2104,17 @@ void make_block(BlockMakeData *data)
 	}
 
 	/*
+		Calculate some stuff
+	*/
+	
+	v2s16 p2d_center((node_min.X + node_max.X)/2, (node_min.Z + node_max.Z)/2);
+	float surface_humidity = surface_humidity_2d(data->seed, p2d_center);
+	bool is_jungle = surface_humidity > 0.75;
+
+	/*
 		Generate some trees
 	*/
+
 	assert(central_area_size.X == central_area_size.Z);
 	{
 		// Divide area into parts
@@ -2152,10 +2166,121 @@ void make_block(BlockMakeData *data)
 				}
 				p.Y++;
 				// Make a tree
-				treegen::make_tree(vmanip, p, false, ndef);
+				if(is_jungle)
+					treegen::make_jungletree(vmanip, p, ndef);
+				else
+					treegen::make_tree(vmanip, p, false, ndef);
 			}
 		}
 	}
+
+	/*
+		If close to ground level, add jungle grass
+	*/
+	if(node_min.Y < WATER_LEVEL && node_max.Y >= WATER_LEVEL && is_jungle)
+	{
+		PseudoRandom grassrandom(blockseed);
+		assert(central_area_size.X == central_area_size.Z);
+		// Divide area into parts
+		s16 div = 8;
+		s16 sidelen = central_area_size.X / div;
+		double area = sidelen * sidelen;
+		for(s16 x0=0; x0<div; x0++)
+		for(s16 z0=0; z0<div; z0++)
+		{
+			// Center position of part of division
+			v2s16 p2d_center(
+				node_min.X + sidelen/2 + sidelen*x0,
+				node_min.Z + sidelen/2 + sidelen*z0
+			);
+			// Minimum edge of part of division
+			v2s16 p2d_min(
+				node_min.X + sidelen*x0,
+				node_min.Z + sidelen*z0
+			);
+			// Maximum edge of part of division
+			v2s16 p2d_max(
+				node_min.X + sidelen + sidelen*x0 - 1,
+				node_min.Z + sidelen + sidelen*z0 - 1
+			);
+			// Amount of trees
+			u32 grass_count = 10.0 * area * tree_amount_2d(data->seed, p2d_center);
+			// Put trees in random places on part of division
+			for(u32 i=0; i<grass_count; i++)
+			{
+				s16 x = myrand_range(p2d_min.X, p2d_max.X);
+				s16 z = myrand_range(p2d_min.Y, p2d_max.Y);
+				s16 y = find_ground_level_from_noise(data->seed, v2s16(x,z), 4);
+				if(y < WATER_LEVEL)
+					continue;
+				if(y < node_min.Y || y > node_max.Y)
+					continue;
+				/*
+					Find exact ground level
+				*/
+				v3s16 p(x,y+6,z);
+				bool found = false;
+				for(; p.Y >= y-6; p.Y--)
+				{
+					u32 i = vmanip.m_area.index(p);
+					MapNode *n = &vmanip.m_data[i];
+					if(data->nodedef->get(*n).is_ground_content)
+					{
+						found = true;
+						break;
+					}
+				}
+				// If not found, handle next one
+				if(found == false)
+					continue;
+				p.Y++;
+				if(vmanip.m_area.contains(p) == false)
+					continue;
+				if(vmanip.m_data[vmanip.m_area.index(p)].getContent() != CONTENT_AIR)
+					continue;
+				/*p.Y--;
+				if(vmanip.m_area.contains(p))
+					vmanip.m_data[vmanip.m_area.index(p)] = c_dirt;
+				p.Y++;*/
+				if(vmanip.m_area.contains(p))
+					vmanip.m_data[vmanip.m_area.index(p)] = c_junglegrass;
+			}
+		}
+	}
+
+#if 0
+		/*
+			Add some kind of random stones
+		*/
+		
+		u32 random_stone_count = gen_area_nodes *
+				randomstone_amount_2d(data->seed, p2d_center);
+		// Put in random places on part of division
+		for(u32 i=0; i<random_stone_count; i++)
+		{
+			s16 x = myrand_range(node_min.X, node_max.X);
+			s16 z = myrand_range(node_min.Z, node_max.Z);
+			s16 y = find_ground_level_from_noise(data->seed, v2s16(x,z), 1);
+			// Don't add under water level
+			/*if(y < WATER_LEVEL)
+				continue;*/
+			// Don't add if doesn't belong to this block
+			if(y < node_min.Y || y > node_max.Y)
+				continue;
+			v3s16 p(x,y,z);
+			// Filter placement
+			/*{
+				u32 i = vmanip->m_area.index(v3s16(p));
+				MapNode *n = &vmanip->m_data[i];
+				if(n->getContent() != c_dirt && n->getContent() != c_dirt_with_grass)
+					continue;
+			}*/
+			// Will be placed one higher
+			p.Y++;
+			// Add it
+			make_randomstone(vmanip, p);
+		}
+#endif
 
 #if 0
 	/*
@@ -2379,17 +2504,6 @@ void make_block(BlockMakeData *data)
 		}
 
 		/*
-			Calculate some stuff
-		*/
-		
-		float surface_humidity = surface_humidity_2d(data->seed, p2d_center);
-		bool is_jungle = surface_humidity > 0.75;
-		// Amount of trees
-		u32 tree_count = gen_area_nodes * tree_amount_2d(data->seed, p2d_center);
-		if(is_jungle)
-			tree_count *= 5;
-
-		/*
 			Add trees
 		*/
 		PseudoRandom treerandom(blockseed);
@@ -2464,53 +2578,6 @@ void make_block(BlockMakeData *data)
 					p.Y++;
 					make_cactus(vmanip, p, ndef);
 				}
-			}
-		}
-
-		/*
-			Add jungle grass
-		*/
-		if(is_jungle)
-		{
-			PseudoRandom grassrandom(blockseed);
-			for(u32 i=0; i<surface_humidity*5*tree_count; i++)
-			{
-				s16 x = grassrandom.range(node_min.X, node_max.X);
-				s16 z = grassrandom.range(node_min.Z, node_max.Z);
-				s16 y = find_ground_level_from_noise(data->seed, v2s16(x,z), 4);
-				if(y < WATER_LEVEL)
-					continue;
-				if(y < node_min.Y || y > node_max.Y)
-					continue;
-				/*
-					Find exact ground level
-				*/
-				v3s16 p(x,y+6,z);
-				bool found = false;
-				for(; p.Y >= y-6; p.Y--)
-				{
-					u32 i = vmanip->m_area.index(p);
-					MapNode *n = &vmanip->m_data[i];
-					if(data->nodedef->get(*n).is_ground_content)
-					{
-						found = true;
-						break;
-					}
-				}
-				// If not found, handle next one
-				if(found == false)
-					continue;
-				p.Y++;
-				if(vmanip.m_area.contains(p) == false)
-					continue;
-				if(vmanip.m_data[vmanip.m_area.index(p)].getContent() != CONTENT_AIR)
-					continue;
-				/*p.Y--;
-				if(vmanip.m_area.contains(p))
-					vmanip.m_data[vmanip.m_area.index(p)] = c_dirt;
-				p.Y++;*/
-				if(vmanip.m_area.contains(p))
-					vmanip.m_data[vmanip.m_area.index(p)] = c_junglegrass;
 			}
 		}
 

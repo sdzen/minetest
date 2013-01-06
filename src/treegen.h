@@ -49,6 +49,8 @@ MapNode fruitnode;
 	// Add default tree
 	void make_tree(ManualMapVoxelManipulator &vmanip, v3s16 p0,
 			bool is_apple_tree, INodeDefManager *ndef);
+	void make_jungletree(ManualMapVoxelManipulator &vmanip, v3s16 p0,
+			INodeDefManager *ndef);
 	
 	// Add L-Systems tree (used by engine)
 	void make_ltree(ManualMapVoxelManipulator &vmanip, v3s16 p0, INodeDefManager *ndef,
