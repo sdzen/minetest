@@ -154,7 +154,6 @@ static void make_cactus(VoxelManipulator &vmanip, v3s16 p0,
 }
 #endif
 
-#if 0
 /*
 	Dungeon making routines
 */
@@ -582,7 +581,7 @@ private:
 };
 
 static void make_dungeon1(VoxelManipulator &vmanip, PseudoRandom &random,
-		INodeDefManager *ndef)
+		INodeDefManager *ndef, v3s16 start_padding)
 {
 	v3s16 areasize = vmanip.m_area.getExtent();
 	v3s16 roomsize;
@@ -595,10 +594,12 @@ static void make_dungeon1(VoxelManipulator &vmanip, PseudoRandom &random,
 	for(u32 i=0; i<100; i++)
 	{
 		roomsize = v3s16(random.range(4,8),random.range(4,6),random.range(4,8));
-		roomplace = vmanip.m_area.MinEdge + v3s16(
-				random.range(0,areasize.X-roomsize.X-1),
-				random.range(0,areasize.Y-roomsize.Y-1),
-				random.range(0,areasize.Z-roomsize.Z-1));
+		// start_padding is used to disallow starting the generation of
+		// a dungeon in a neighboring generation chunk
+		roomplace = vmanip.m_area.MinEdge + start_padding + v3s16(
+				random.range(0,areasize.X-roomsize.X-1-start_padding.X),
+				random.range(0,areasize.Y-roomsize.Y-1-start_padding.Y),
+				random.range(0,areasize.Z-roomsize.Z-1-start_padding.Z));
 		/*
 			Check that we're not putting the room to an unknown place,
 			otherwise it might end up floating in the air
@@ -706,7 +707,6 @@ static void make_dungeon1(VoxelManipulator &vmanip, PseudoRandom &random,
 		
 	}
 }
-#endif
 
 #if 0
 static void make_nc(VoxelManipulator &vmanip, PseudoRandom &random,
@@ -802,6 +802,7 @@ NoiseParams get_ground_crumbleness_params(u64 seed)
 	return NoiseParams(NOISE_PERLIN, seed+34413, 3,
 			1.3, 20.0, 1.0);
 }
+#endif
 
 NoiseParams get_ground_wetness_params(u64 seed)
 {
@@ -809,6 +810,7 @@ NoiseParams get_ground_wetness_params(u64 seed)
 			1.1, 40.0, 1.0);
 }
 
+#if 0
 bool is_cave(u64 seed, v3s16 p)
 {
 	double d1 = noise3d_param(get_cave_noise1_params(seed), p.X,p.Y,p.Z);
@@ -1924,6 +1926,83 @@ void make_block(BlockMakeData *data)
 	************************/
 
 	/*
+		Add dungeons
+	*/
+
+	int approx_groundlevel = 10;
+	//float dungeon_rarity = 0.02;
+	if(/*((noise3d(blockpos.X,blockpos.Y,blockpos.Z,data->seed)+1.0)/2.0)
+			< dungeon_rarity &&*/ node_min.Y < approx_groundlevel)
+	{
+		// Dungeon generator doesn't modify places which have this set
+		vmanip.clearFlag(VMANIP_FLAG_DUNGEON_INSIDE
+				| VMANIP_FLAG_DUNGEON_PRESERVE);
+		
+		// Set all air and water to be untouchable to make dungeons open
+		// to caves and open air
+		for(s16 x=full_node_min.X; x<=full_node_max.X; x++)
+		for(s16 z=full_node_min.Z; z<=full_node_max.Z; z++)
+		{
+			// Node position
+			v2s16 p2d(x,z);
+			{
+				// Use fast index incrementing
+				v3s16 em = vmanip.m_area.getExtent();
+				u32 i = vmanip.m_area.index(v3s16(p2d.X, full_node_max.Y, p2d.Y));
+				for(s16 y=full_node_max.Y; y>=full_node_min.Y; y--)
+				{
+					if(vmanip.m_data[i].getContent() == CONTENT_AIR)
+						vmanip.m_flags[i] |= VMANIP_FLAG_DUNGEON_PRESERVE;
+					else if(vmanip.m_data[i].getContent() == c_water_source)
+						vmanip.m_flags[i] |= VMANIP_FLAG_DUNGEON_PRESERVE;
+					vmanip.m_area.add_y(em, i, -1);
+				}
+			}
+		}
+		
+		PseudoRandom random(blockseed+2);
+
+		// Add it
+		make_dungeon1(vmanip, random, ndef, v3s16(1,1,1)*MAP_BLOCKSIZE);
+		
+		// Convert some cobble to mossy cobble
+		for(s16 x=full_node_min.X; x<=full_node_max.X; x++)
+		for(s16 z=full_node_min.Z; z<=full_node_max.Z; z++)
+		{
+			// Node position
+			v2s16 p2d(x,z);
+			{
+				// Use fast index incrementing
+				v3s16 em = vmanip.m_area.getExtent();
+				u32 i = vmanip.m_area.index(v3s16(p2d.X, full_node_max.Y, p2d.Y));
+				for(s16 y=full_node_max.Y; y>=full_node_min.Y; y--)
+				{
+					// (noisebuf not used because it doesn't contain the
+					//  full area)
+					double wetness = noise3d_param(
+							get_ground_wetness_params(data->seed), x,y,z);
+					double d = noise3d_perlin((float)x/2.5,
+							(float)y/2.5,(float)z/2.5,
+							blockseed, 2, 1.4);
+					if(vmanip.m_data[i].getContent() == c_cobble)
+					{
+						if(d < wetness/3.0)
+						{
+							vmanip.m_data[i].setContent(c_mossycobble);
+						}
+					}
+					/*else if(vmanip.m_flags[i] & VMANIP_FLAG_DUNGEON_INSIDE)
+					{
+						if(wetness > 1.2)
+							vmanip.m_data[i].setContent(c_dirt);
+					}*/
+					vmanip.m_area.add_y(em, i, -1);
+				}
+			}
+		}
+	}
+
+	/*
 		Add top and bottom side of water to transforming_liquid queue
 	*/
 
@@ -2161,88 +2240,6 @@ void make_block(BlockMakeData *data)
 				}
 
 				vmanip->m_area.add_y(em, i, -1);
-			}
-		}
-	}
-
-	/*
-		Add dungeons
-	*/
-	
-	//if(node_min.Y < approx_groundlevel)
-	//if(myrand() % 3 == 0)
-	//if(myrand() % 3 == 0 && node_min.Y < approx_groundlevel)
-	//if(myrand() % 100 == 0 && node_min.Y < approx_groundlevel)
-	//float dungeon_rarity = g_settings.getFloat("dungeon_rarity");
-	float dungeon_rarity = 0.02;
-	if(((noise3d(blockpos.X,blockpos.Y,blockpos.Z,data->seed)+1.0)/2.0)
-			< dungeon_rarity
-			&& node_min.Y < approx_groundlevel)
-	{
-		// Dungeon generator doesn't modify places which have this set
-		vmanip->clearFlag(VMANIP_FLAG_DUNGEON_INSIDE
-				| VMANIP_FLAG_DUNGEON_PRESERVE);
-		
-		// Set all air and water to be untouchable to make dungeons open
-		// to caves and open air
-		for(s16 x=full_node_min.X; x<=full_node_max.X; x++)
-		for(s16 z=full_node_min.Z; z<=full_node_max.Z; z++)
-		{
-			// Node position
-			v2s16 p2d(x,z);
-			{
-				// Use fast index incrementing
-				v3s16 em = vmanip.m_area.getExtent();
-				u32 i = vmanip.m_area.index(v3s16(p2d.X, full_node_max.Y, p2d.Y));
-				for(s16 y=full_node_max.Y; y>=full_node_min.Y; y--)
-				{
-					if(vmanip.m_data[i].getContent() == CONTENT_AIR)
-						vmanip.m_flags[i] |= VMANIP_FLAG_DUNGEON_PRESERVE;
-					else if(vmanip.m_data[i].getContent() == c_water_source)
-						vmanip.m_flags[i] |= VMANIP_FLAG_DUNGEON_PRESERVE;
-					vmanip->m_area.add_y(em, i, -1);
-				}
-			}
-		}
-		
-		PseudoRandom random(blockseed+2);
-
-		// Add it
-		make_dungeon1(vmanip, random, ndef);
-		
-		// Convert some cobble to mossy cobble
-		for(s16 x=full_node_min.X; x<=full_node_max.X; x++)
-		for(s16 z=full_node_min.Z; z<=full_node_max.Z; z++)
-		{
-			// Node position
-			v2s16 p2d(x,z);
-			{
-				// Use fast index incrementing
-				v3s16 em = vmanip.m_area.getExtent();
-				u32 i = vmanip.m_area.index(v3s16(p2d.X, full_node_max.Y, p2d.Y));
-				for(s16 y=full_node_max.Y; y>=full_node_min.Y; y--)
-				{
-					// (noisebuf not used because it doesn't contain the
-					//  full area)
-					double wetness = noise3d_param(
-							get_ground_wetness_params(data->seed), x,y,z);
-					double d = noise3d_perlin((float)x/2.5,
-							(float)y/2.5,(float)z/2.5,
-							blockseed, 2, 1.4);
-					if(vmanip.m_data[i].getContent() == c_cobble)
-					{
-						if(d < wetness/3.0)
-						{
-							vmanip.m_data[i].setContent(c_mossycobble);
-						}
-					}
-					/*else if(vmanip.m_flags[i] & VMANIP_FLAG_DUNGEON_INSIDE)
-					{
-						if(wetness > 1.2)
-							vmanip.m_data[i].setContent(c_dirt);
-					}*/
-					vmanip->m_area.add_y(em, i, -1);
-				}
 			}
 		}
 	}
