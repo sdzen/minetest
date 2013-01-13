@@ -729,14 +729,24 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 			TileSpec tile = getNodeTileN(n, p, 0, data);
 			tile.material_flags |= MATERIAL_FLAG_CRACK_OVERLAY;
 			AtlasPointer ap = tile.texture;
-			
+
 			u16 l = getInteriorLight(n, 1, data);
 			video::SColor c = MapBlock_LightColor(255, l, decode_light(f.light_source));
 
 			for(u32 j=0; j<4; j++)
 			{
-				video::S3DVertex vertices[4] =
+				video::S3DVertex vertices[8] =
 				{
+					video::S3DVertex(-BS/2*f.visual_scale,-BS/2,0, 0,0,0, c,
+						ap.x0(), ap.y1()),
+					video::S3DVertex( BS/2*f.visual_scale,-BS/2,0, 0,0,0, c,
+						ap.x1(), ap.y1()),
+					video::S3DVertex( BS/2*f.visual_scale,
+						-BS/2 + f.visual_scale*BS,0, 0,0,0, c,
+						ap.x1(), ap.y0()),
+					video::S3DVertex(-BS/2*f.visual_scale,
+						-BS/2 + f.visual_scale*BS,0, 0,0,0, c,
+						ap.x0(), ap.y0()),
 					video::S3DVertex(-BS/2*f.visual_scale,-BS/2,0, 0,0,0, c,
 						ap.x0(), ap.y1()),
 					video::S3DVertex( BS/2*f.visual_scale,-BS/2,0, 0,0,0, c,
@@ -769,6 +779,26 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 					for(u16 i=0; i<4; i++)
 						vertices[i].Pos.rotateXZBy(-135);
 				}
+				else if(j == 4)
+				{
+					for(u16 i=0; i<4; i++)
+						vertices[i].Pos.rotateXZBy(180);
+				}
+				else if(j == 5)
+				{
+					for(u16 i=0; i<4; i++)
+						vertices[i].Pos.rotateXZBy(-180);
+				}
+				else if(j == 6)
+				{
+					for(u16 i=0; i<4; i++)
+						vertices[i].Pos.rotateXZBy(-360);
+				}
+				else if(j == 7)
+				{
+					for(u16 i=0; i<4; i++)
+						vertices[i].Pos.rotateXZBy(360);
+				}
 
 				for(u16 i=0; i<4; i++)
 				{
@@ -776,9 +806,9 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 					vertices[i].Pos += intToFloat(p, BS);
 				}
 
-				u16 indices[] = {0,1,2,2,3,0};
+				u16 indices[] = {0,1,2,2,3,4,5,6,7,0};
 				// Add to mesh collector
-				collector.append(tile, vertices, 4, indices, 6);
+				collector.append(tile, vertices, 8, indices, 9);
 			}
 		break;}
 		case NDT_FENCELIKE:
