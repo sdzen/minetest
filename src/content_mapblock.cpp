@@ -733,7 +733,7 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 			u16 l = getInteriorLight(n, 1, data);
 			video::SColor c = MapBlock_LightColor(255, l, decode_light(f.light_source));
 
-			for(u32 j=0; j<4; j++)
+			for(u32 j=0; j<8; j++)
 			{
 				video::S3DVertex vertices[8] =
 				{
@@ -761,46 +761,46 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 
 				if(j == 0)
 				{
-					for(u16 i=0; i<4; i++)
+					for(u16 i=0; i<8; i++)
 						vertices[i].Pos.rotateXZBy(45);
 				}
 				else if(j == 1)
 				{
-					for(u16 i=0; i<4; i++)
+					for(u16 i=0; i<8; i++)
 						vertices[i].Pos.rotateXZBy(-45);
 				}
 				else if(j == 2)
 				{
-					for(u16 i=0; i<4; i++)
+					for(u16 i=0; i<8; i++)
 						vertices[i].Pos.rotateXZBy(135);
 				}
 				else if(j == 3)
 				{
-					for(u16 i=0; i<4; i++)
+					for(u16 i=0; i<8; i++)
 						vertices[i].Pos.rotateXZBy(-135);
 				}
 				else if(j == 4)
 				{
-					for(u16 i=0; i<4; i++)
+					for(u16 i=0; i<8; i++)
 						vertices[i].Pos.rotateXZBy(180);
 				}
 				else if(j == 5)
 				{
-					for(u16 i=0; i<4; i++)
+					for(u16 i=0; i<8; i++)
 						vertices[i].Pos.rotateXZBy(-180);
 				}
 				else if(j == 6)
 				{
-					for(u16 i=0; i<4; i++)
+					for(u16 i=0; i<8; i++)
 						vertices[i].Pos.rotateXZBy(-360);
 				}
 				else if(j == 7)
 				{
-					for(u16 i=0; i<4; i++)
+					for(u16 i=0; i<8; i++)
 						vertices[i].Pos.rotateXZBy(360);
 				}
 
-				for(u16 i=0; i<4; i++)
+				for(u16 i=0; i<8; i++)
 				{
 					vertices[i].Pos *= f.visual_scale;
 					vertices[i].Pos += intToFloat(p, BS);
