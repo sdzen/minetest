@@ -782,22 +782,22 @@ void mapblock_mesh_generate_special(MeshMakeData *data,
 				else if(j == 4)
 				{
 					for(u16 i=0; i<8; i++)
-						vertices[i].Pos.rotateXZBy(180);
+						vertices[i].Pos.rotateXZBy(90);
 				}
 				else if(j == 5)
 				{
 					for(u16 i=0; i<8; i++)
-						vertices[i].Pos.rotateXZBy(-180);
+						vertices[i].Pos.rotateXZBy(-90);
 				}
 				else if(j == 6)
 				{
 					for(u16 i=0; i<8; i++)
-						vertices[i].Pos.rotateXZBy(-360);
+						vertices[i].Pos.rotateXZBy(180);
 				}
 				else if(j == 7)
 				{
 					for(u16 i=0; i<8; i++)
-						vertices[i].Pos.rotateXZBy(360);
+						vertices[i].Pos.rotateXZBy(-180);
 				}
 
 				for(u16 i=0; i<8; i++)
